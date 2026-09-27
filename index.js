@@ -495,8 +495,4 @@ client.on(
   }
 );
 
-client.login(
-   'process.env.DISCORD_TOKEN'
-
-);
-
+   'client.login(process.env.DISCORD_TOKEN || process.env.TOKEN);'
