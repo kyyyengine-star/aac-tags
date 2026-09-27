@@ -1,0 +1,75 @@
+IntentBits,
+  PermissionFlagsBits
+} = require('discord.js');
+
+const fs = require('fs');
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers
+  ]
+});
+
+const CONFIG_FILE = './tags.json';
+
+function loadTags() {
+  if (!fs.existsSync(CONFIG_FILE)) {
+    fs.writeFileSync(CONFIG_FILE, '{}');
+  }
+
+  return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+}
+
+function saveTags(tags) {
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(tags, null, 2));
+}
+
+client.once('ready', () => {
+  console.log(`AAC Tags aktif sebagai ${client.user.tag}`);
+});
+
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === 'prefix-add-roles') {
+    if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageGuild)) {
+      return interaction.reply({
+        content: 'Lu nggak punya izin buat mengatur tag role.',
+        ephemeral: true
+      });
+    }
+
+    const role = interaction.options.getRole('role');
+    const nama = interaction.options.getString('nama');
+
+    const tags = loadTags();
+
+    tags[role.id] = {
+      roleName: role.name,
+      tag: nama
+    };
+
+    saveTags(tags);
+
+    await interaction.reply(
+      `Berhasil! Role **${role.name}** sekarang memakai tag **${nama}**.`
+    );
+  }
+});
+
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+  try {
+    const tags = loadTags();
+
+    for (const roleId of Object.keys(tags)) {
+      const oldHasRole = oldMember.roles.cache.has(roleId);
+      const newHasRole = newMember.roles.cache.has(roleId);
+
+      if (oldHasRole === newHasRole) continue;
+
+      const tag = tags[roleId].tag;
+      const currentName = newMember.nickname || newMember.user.username;
+
+      if (newHasRole) {
+        if (!currentName.startsWith(`${tag} `))
